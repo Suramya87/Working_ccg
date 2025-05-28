@@ -1,41 +1,37 @@
--- GameState.lua
 local PlayerStats = require("PlayerStats")
+local Board = require("Board")
 
 local GameState = {}
 GameState.__index = GameState
 
 function GameState:new()
-    local obj = {
-        turn = 0,
-        player = PlayerStats:new("Player"),
-        enemy = PlayerStats:new("Enemy"),
-        phase = "play",
-    }
+    local self = setmetatable({}, GameState)
+    self.turn = 0
+    self.phase = "play"
+    self.board = Board.new()
+    self.player = PlayerStats:new("Player")
+    self.enemy = PlayerStats:new("Enemy")
 
-    -- Fill decks with 20 cards each (dummy cards for now)
     for i = 1, 20 do
-        table.insert(obj.player.deck, {name = "Card " .. i, cost = i % 3 + 1, power = i % 5 + 1, text = ""})
-        table.insert(obj.enemy.deck, {name = "Card " .. i, cost = i % 3 + 1, power = i % 5 + 1, text = ""})
+        table.insert(self.player.deck, {name = "Card " .. i, cost = i % 3 + 1, power = i % 5 + 1})
+        table.insert(self.enemy.deck, {name = "Card " .. i, cost = i % 3 + 1, power = i % 5 + 1})
     end
 
-    -- Shuffle decks
     math.randomseed(os.time())
-    for _, deck in ipairs({obj.player.deck, obj.enemy.deck}) do
+    for _, deck in ipairs({self.player.deck, self.enemy.deck}) do
         for i = #deck, 2, -1 do
             local j = math.random(i)
             deck[i], deck[j] = deck[j], deck[i]
         end
     end
 
-    -- Draw starting hand
     for _ = 1, 3 do
-        obj.player:drawCard()
-        obj.enemy:drawCard()
+        self.player:drawCard()
+        self.enemy:drawCard()
     end
 
-    setmetatable(obj, self)
-    obj:startTurn()
-    return obj
+    self:startTurn()
+    return self
 end
 
 function GameState:startTurn()
@@ -50,7 +46,6 @@ end
 function GameState:submitTurn()
     self.phase = "resolution"
 
-    -- Random enemy placement
     for i = 1, 3 do
         local slots = self.enemy.board[i]
         while #slots < 4 and #self.enemy.hand > 0 do
@@ -69,8 +64,17 @@ end
 function GameState:resolveCombat()
     for i = 1, 3 do
         local playerPower, enemyPower = 0, 0
-        for _, c in ipairs(self.player.board[i]) do playerPower = playerPower + c.power end
-        for _, c in ipairs(self.enemy.board[i]) do enemyPower = enemyPower + c.power end
+        for _, slot in ipairs(self.board.zones[i].playerSlots) do
+            if slot.card then playerPower = playerPower + slot.card.power end
+        end
+        for _, slot in ipairs(self.board.zones[i].aiSlots) do
+            local card = self.enemy.board[i][1]
+            if card then
+                slot.card = card
+                enemyPower = enemyPower + card.power
+                table.remove(self.enemy.board[i], 1)
+            end
+        end
 
         if playerPower > enemyPower then
             self.player.points = self.player.points + (playerPower - enemyPower)
@@ -79,8 +83,7 @@ function GameState:resolveCombat()
         end
     end
 
-    local winScore = 20
-    if self.player.points >= winScore or self.enemy.points >= winScore then
+    if self.player.points >= 20 or self.enemy.points >= 20 then
         self.phase = "gameover"
     else
         self:prepareNextTurn()
@@ -88,14 +91,23 @@ function GameState:resolveCombat()
 end
 
 function GameState:prepareNextTurn()
+    for _, zone in ipairs(self.board.zones) do
+        for _, slot in ipairs(zone.playerSlots) do slot.card = nil end
+        for _, slot in ipairs(zone.aiSlots) do slot.card = nil end
+    end
+
     for i = 1, 3 do
         self.player.board[i] = {}
         self.enemy.board[i] = {}
     end
+
     self:startTurn()
 end
 
 function GameState:draw()
+    self.board:draw()
+
+    love.graphics.setColor(1, 1, 1)
     love.graphics.print("Turn: " .. self.turn, 40, 20)
     love.graphics.print("Your Mana: " .. self.player.mana, 40, 40)
     love.graphics.print("Your Points: " .. self.player.points, 40, 60)
@@ -104,6 +116,10 @@ function GameState:draw()
     if self.phase == "play" then
         love.graphics.rectangle("line", 600, 700, 150, 40)
         love.graphics.print("Submit Turn", 610, 710)
+    elseif self.phase == "gameover" then
+        local msg = self.player.points > self.enemy.points and "You Win!" or "You Lose!"
+        love.graphics.setColor(1, 1, 0)
+        love.graphics.print(msg, 400, 350, 0, 2, 2)
     end
 end
 

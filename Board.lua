@@ -38,7 +38,7 @@ local function createZoneSlots(zoneIndex, xStart)
     zone.aiSlots = createGrid(zoneCenterX, aiYStart)
     zone.playerSlots = createGrid(zoneCenterX, playerYStart)
 
-    -- Dynamically calculate bounding box
+    -- Calculate bounding box of all slots
     local allSlots = {}
     for _, slot in ipairs(zone.aiSlots) do table.insert(allSlots, slot) end
     for _, slot in ipairs(zone.playerSlots) do table.insert(allSlots, slot) end
@@ -129,6 +129,18 @@ function Board:calculateZonePower(zone)
         end
     end
     return playerPower, aiPower
+end
+
+-- ✅ FIXED: Now uses zones and aiSlots correctly
+function Board:getEmptySlotForAI()
+    for _, zone in ipairs(self.zones) do
+        for _, slot in ipairs(zone.aiSlots) do
+            if not slot.card then
+                return slot
+            end
+        end
+    end
+    return nil
 end
 
 return Board

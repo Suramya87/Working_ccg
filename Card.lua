@@ -1,12 +1,13 @@
 local Card = {}
 Card.__index = Card
 
-function Card.new(name, cost, power)
+function Card.new(name, cost, power, x, y)
     local self = setmetatable({}, Card)
     self.name = name
-    self.cost = cost
-    self.power = power
-    self.x, self.y = 0, 0
+    self.cost = tonumber(cost)
+    self.power = tonumber(power)
+    self.x = x or 0
+    self.y = y or 0
     return self
 end
 
@@ -21,8 +22,7 @@ function Card:draw()
 end
 
 function Card:contains(x, y)
-    return x >= self.x and x <= self.x + 100 and
-           y >= self.y and y <= self.y + 140
+    return x >= self.x and x <= self.x + 100 and y >= self.y and y <= self.y + 140
 end
 
 return Card
