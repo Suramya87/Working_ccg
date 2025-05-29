@@ -9,7 +9,7 @@ local aiHand = {}
 local draggingCard = nil
 local dragOffsetX, dragOffsetY = 0, 0
 
-local HAND_LIMIT = 5
+local HAND_LIMIT = 7
 local drawButton = { x = 20, y = 520, w = 80, h = 40 }
 local submitButton = { x = 110, y = 520, w = 80, h = 40 }
 
@@ -19,8 +19,8 @@ local aiPoints = 0
 function love.load()
     board = Board.new()
     loadDecksFromCSV("cards.csv")
-    drawCards(playerDeck, playerHand, 5)
-    drawCards(aiDeck, aiHand, 5)
+    drawCards(playerDeck, playerHand, 3)
+    drawCards(aiDeck, aiHand, 3)
 end
 
 function loadDecksFromCSV(filename)
