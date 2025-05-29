@@ -4,7 +4,7 @@ local Board = require("Board")
 local GameState = {}
 GameState.__index = GameState
 
-local WINNING_POINTS = 5
+local WINNING_POINTS = 10
 
 local HAND_LIMIT = 7
 
@@ -35,6 +35,7 @@ function GameState:new()
     self.drawButton = { x = 20, y = 520, w = 80, h = 40 }
     self.submitButton = { x = 110, y = 520, w = 80, h = 40 }
     self.continueButton = { x = 200, y = 520, w = 80, h = 40 }
+
 
     -- Load decks (you can replace with CSV loading or however you want)
     self:loadDecks()
@@ -370,9 +371,13 @@ function GameState:nextRound()
     self.playerManaUsed = 0
     self.aiManaUsed = 0
 
-    -- Draw 1 card if hand size < 7
-    self:drawCards(self.playerDeck, self.playerHand, 1)
-    self:drawCards(self.aiDeck, self.aiHand, 1)
+    -- Draw 1 card for each player if hand size is less than limit
+    if #self.playerHand < HAND_LIMIT then
+        self:drawCards(self.playerDeck, self.playerHand, 1)
+    end
+    if #self.aiHand < HAND_LIMIT then
+        self:drawCards(self.aiDeck, self.aiHand, 1)
+    end
 
     -- Reset round state
     self.phase = "play"
@@ -382,6 +387,22 @@ function GameState:nextRound()
     -- Layout updated hands
     self:layoutHand(self.playerHand)
     self:layoutHand(self.aiHand)
+
+    self:checkWinCondition()
+end
+
+
+function GameState:checkWinCondition()
+    if self.playerPoints >= WINNING_POINTS and self.aiPoints >= WINNING_POINTS then
+        self.phase = "gameover"
+        self.winner = "Tie"
+    elseif self.playerPoints >= WINNING_POINTS then
+        self.phase = "gameover"
+        self.winner = "Player"
+    elseif self.aiPoints >= WINNING_POINTS then
+        self.phase = "gameover"
+        self.winner = "AI"
+    end
 end
 
 
