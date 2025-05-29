@@ -32,4 +32,4 @@ This was a very interesting project to work on, it took a lot of time to get thi
 
 ## Credits
 
-This project was done by Suramya with some help from chat gpt to clean up code and format this beautiful readme file.
+This project was done by Suramya with some help from chat gpt to clean up code and format this beautiful readme file (I am still trying to learn the ropes).
