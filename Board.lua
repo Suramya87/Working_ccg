@@ -131,7 +131,6 @@ function Board:calculateZonePower(zone)
     return playerPower, aiPower
 end
 
--- ✅ FIXED: Now uses zones and aiSlots correctly
 function Board:getEmptySlotForAI()
     for _, zone in ipairs(self.zones) do
         for _, slot in ipairs(zone.aiSlots) do

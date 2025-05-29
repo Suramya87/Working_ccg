@@ -28,21 +28,17 @@ function GameState:new()
     self.playerPoints = 0
     self.aiPoints = 0
 
-    -- Game phases: "play" = player plays cards, "reveal" = show AI cards and resolve
     self.phase = "play"
 
-    -- Buttons
     self.drawButton = { x = 20, y = 520, w = 80, h = 40 }
-    self.submitButton = { x = 110, y = 520, w = 80, h = 40 }
-    self.continueButton = { x = 200, y = 520, w = 80, h = 40 }
+    self.submitButton = { x = 20, y = 600, w = 80, h = 40 }
+    self.continueButton = { x = 20, y = 600, w = 80, h = 40 }
 
 
-    -- Load decks (you can replace with CSV loading or however you want)
     self:loadDecks()
     self:shuffleDeck(self.playerDeck)
     self:shuffleDeck(self.aiDeck)
 
-    -- Draw initial hands
     self:drawCards(self.playerDeck, self.playerHand, 3)
     self:drawCards(self.aiDeck, self.aiHand, 3)
 
@@ -62,7 +58,6 @@ function GameState:loadDecks()
     local file = love.filesystem.read(path)
     if not file then
         print("Failed to load cards.csv, using default deck")
-        -- fallback to default
         for i = 1, 20 do
             local cost = (i % 3) + 1
             local power = (i % 5) + 1
@@ -77,16 +72,15 @@ function GameState:loadDecks()
         table.insert(lines, line)
     end
 
-    -- First line is header, skip it
     for i = 2, #lines do
         local values = parseCSVLine(lines[i])
         local name = values[1]
         local cost = tonumber(values[2]) or 1
         local power = tonumber(values[3]) or 1
+        local effect = values[4] or ""
 
-        -- For simplicity, 0,0 initial pos
-        local card1 = Card.new(name, cost, power, 0, 0)
-        local card2 = Card.new(name, cost, power, 0, 0)
+        local card1 = Card.new(name, cost, power, 0, 0, effect)
+        local card2 = Card.new(name, cost, power, 0, 0, effect)
         table.insert(self.playerDeck, card1)
         table.insert(self.aiDeck, card2)
     end
@@ -104,7 +98,6 @@ function GameState:drawCards(deck, hand, num)
     for i = 1, num do
         if #deck > 0 then
             local card = table.remove(deck, 1)
-            -- Position cards in hand; actual layout done later
             card.x = 0
             card.y = 0
             table.insert(hand, card)
@@ -122,40 +115,28 @@ function GameState:layoutHand(hand)
 end
 
 function GameState:update(dt)
-    -- no update logic yet
 end
 
 function GameState:draw()
     self.board:draw()
-
-    -- Draw player's hand always visible with names
     for _, card in ipairs(self.playerHand) do
         card:draw()
     end
-
-    -- Draw AI's hand normally with names (no hiding)
     for _, card in ipairs(self.aiHand) do
         card:draw()
     end
     
-
-    
-    
-
-    -- Draw AI cards placed on board slots:
     for _, zone in ipairs(self.board.zones) do
         for i = 1, 4 do
             local aiSlot = zone.aiSlots[i]
             local card = aiSlot.card
             if card then
                 if self.phase == "play" then
-                    -- Draw back of card (hidden) on the board slot
                     love.graphics.setColor(0.1, 0.1, 0.1)
                     love.graphics.rectangle("fill", card.x, card.y, card.width or 100, card.height or 140)
                     love.graphics.setColor(1, 1, 1)
                     love.graphics.printf("???", card.x, card.y + 60, card.width or 100, "center")
                 else
-                    -- Reveal card
                     card:draw()
                 end
             end
@@ -187,7 +168,7 @@ function GameState:draw()
     love.graphics.print("Player Points: " .. self.playerPoints, 20, 50)
     love.graphics.print("AI Points: " .. self.aiPoints, 20, 70)
     
-            -- Draw Player mana info
+    -- Draw Player mana info
     love.graphics.print("Player Mana: " .. self.mana, 200, 10)
     love.graphics.print("Player Mana Used: " .. self.playerManaUsed, 200, 30)
 
@@ -231,7 +212,6 @@ function GameState:mousepressed(x, y, button)
             return
         end
 
-        -- Handle dragging player cards (simplified for example)
         for _, card in ipairs(self.playerHand) do
             if card:contains(x, y) then
                 self.draggingCard = card
@@ -293,7 +273,7 @@ end
 function GameState:aiTurn()
     if self.phase ~= "play" then return end
 
-    -- Try placing as many cards as possible without exceeding mana
+  
     local i = 1
     while i <= #self.aiHand do
         local card = self.aiHand[i]
@@ -306,12 +286,12 @@ function GameState:aiTurn()
                 card.y = slot.y
 
                 self.aiManaUsed = self.aiManaUsed + card.cost
-                table.remove(self.aiHand, i) -- Remove from AI hand after placement
+                table.remove(self.aiHand, i) 
             else
-                break -- No more slots available
+                break 
             end
         else
-            i = i + 1 -- Skip to next card if this one can't be placed
+            i = i + 1 
         end
     end
 end
