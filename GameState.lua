@@ -4,10 +4,19 @@ local Board = require("Board")
 local GameState = {}
 GameState.__index = GameState
 
+local WINNING_POINTS = 5
+
 local HAND_LIMIT = 7
 
 function GameState:new()
     local self = setmetatable({}, GameState)
+    self.turn = 1
+    self.mana = 1
+    
+    self.playerManaUsed = 0
+    self.aiManaUsed = 0
+
+
 
     self.board = Board.new()
 
@@ -127,6 +136,10 @@ function GameState:draw()
     for _, card in ipairs(self.aiHand) do
         card:draw()
     end
+    
+
+    
+    
 
     -- Draw AI cards placed on board slots:
     for _, zone in ipairs(self.board.zones) do
@@ -172,9 +185,30 @@ function GameState:draw()
     love.graphics.print("Hand: " .. #self.playerHand .. "/" .. HAND_LIMIT, 20, 30)
     love.graphics.print("Player Points: " .. self.playerPoints, 20, 50)
     love.graphics.print("AI Points: " .. self.aiPoints, 20, 70)
+    
+            -- Draw Player mana info
+    love.graphics.print("Player Mana: " .. self.mana, 200, 10)
+    love.graphics.print("Player Mana Used: " .. self.playerManaUsed, 200, 30)
+
+    -- Draw AI mana info
+    love.graphics.print("AI Mana: " .. self.mana, 350, 10)
+    love.graphics.print("AI Mana Used: " .. self.aiManaUsed, 350, 30)
 
     -- Draw AI cards count (hand size)
     love.graphics.print("AI Cards in Hand: " .. #self.aiHand, 20, 90)
+    
+    
+    if self.phase == "gameover" then
+    love.graphics.setColor(1, 0, 0)
+    local msg = "Game Over! "
+    if self.winner == "Tie" then
+        msg = msg .. "It's a tie!"
+    else
+        msg = msg .. self.winner .. " wins!"
+    end
+    love.graphics.printf(msg, 0, 300, love.graphics.getWidth(), "center")
+end
+
 end
 
 
@@ -224,53 +258,68 @@ function GameState:mousereleased(x, y, button)
 
     local slot = self.board:getHoveredSlot(x, y)
     if slot and not slot.card and self.phase == "play" then
-        slot.card = self.draggingCard
+        -- Check if player has enough mana left
+        if self.draggingCard.cost + self.playerManaUsed <= self.mana then
+            -- Valid move
+            slot.card = self.draggingCard
+            self.playerManaUsed = self.playerManaUsed + self.draggingCard.cost
 
-        for i, c in ipairs(self.playerHand) do
-            if c == self.draggingCard then
-                table.remove(self.playerHand, i)
-                break
+            for i, c in ipairs(self.playerHand) do
+                if c == self.draggingCard then
+                    table.remove(self.playerHand, i)
+                    break
+                end
             end
+
+            self.draggingCard.x = slot.x
+            self.draggingCard.y = slot.y
+            self:layoutHand(self.playerHand)
+
+            self:aiTurn()
+        else
+            -- Not enough mana, reject the move and reset card position
+            self.draggingCard.x = nil
+            self.draggingCard.y = nil
+            self:layoutHand(self.playerHand)
         end
-
-        self.draggingCard.x = slot.x
-        self.draggingCard.y = slot.y
-        self:layoutHand(self.playerHand)
-
-        self:aiTurn()
     end
 
     self.draggingCard = nil
 end
 
+
+
 function GameState:aiTurn()
-    -- AI places one card during play phase only
     if self.phase ~= "play" then return end
 
-    for _, card in ipairs(self.aiHand) do
-        local slot = self.board:getEmptySlotForAI()
-        if slot then
-            slot.card = card
-            card.x = slot.x
-            card.y = slot.y
+    -- Try placing as many cards as possible without exceeding mana
+    local i = 1
+    while i <= #self.aiHand do
+        local card = self.aiHand[i]
+        if card.cost + self.aiManaUsed <= self.mana then
+            local slot = self.board:getEmptySlotForAI()
+            if slot then
+                -- Place the card
+                slot.card = card
+                card.x = slot.x
+                card.y = slot.y
 
-            for i, c in ipairs(self.aiHand) do
-                if c == card then
-                    table.remove(self.aiHand, i)
-                    break
-                end
+                self.aiManaUsed = self.aiManaUsed + card.cost
+                table.remove(self.aiHand, i) -- Remove from AI hand after placement
+            else
+                break -- No more slots available
             end
-            break
+        else
+            i = i + 1 -- Skip to next card if this one can't be placed
         end
     end
-
-    self:drawCards(self.aiDeck, self.aiHand, 1)
-    self:layoutHand(self.aiHand)
 end
+
 
 function GameState:resolveCombat()
     -- Compute points based on cards on board and clear slots
     for _, zone in ipairs(self.board.zones) do
+
         for i = 1, 4 do
             local pSlot = zone.playerSlots[i]
             local aSlot = zone.aiSlots[i]
@@ -290,10 +339,22 @@ function GameState:resolveCombat()
             end
         end
     end
+        -- Check for winner
+    if self.playerPoints >= WINNING_POINTS or self.aiPoints >= WINNING_POINTS then
+        if self.playerPoints > self.aiPoints then
+            self.winner = "Player"
+        elseif self.aiPoints > self.playerPoints then
+            self.winner = "AI"
+        else
+            self.winner = "Tie"
+        end
+        self.phase = "gameover"
+end
+
 end
 
 function GameState:nextRound()
-    -- Clear board
+    -- Clear board slots
     for _, zone in ipairs(self.board.zones) do
         for i = 1, 4 do
             zone.playerSlots[i].card = nil
@@ -301,15 +362,29 @@ function GameState:nextRound()
         end
     end
 
+    -- Increase turn and update mana
+    self.turn = (self.turn or 1) + 1
+    self.mana = self.turn
+
+    -- Reset used mana
+    self.playerManaUsed = 0
+    self.aiManaUsed = 0
+
+    -- Draw 1 card if hand size < 7
+    self:drawCards(self.playerDeck, self.playerHand, 1)
+    self:drawCards(self.aiDeck, self.aiHand, 1)
+
+    -- Reset round state
     self.phase = "play"
+    self.winner = nil
+    self.draggingCard = nil
 
-    -- Draw new cards if possible
-    self:drawCards(self.playerDeck, self.playerHand, 3)
-    self:drawCards(self.aiDeck, self.aiHand, 3)
-
+    -- Layout updated hands
     self:layoutHand(self.playerHand)
     self:layoutHand(self.aiHand)
 end
+
+
 
 function GameState:inRect(x, y, rect)
     return x >= rect.x and x <= rect.x + rect.w and
