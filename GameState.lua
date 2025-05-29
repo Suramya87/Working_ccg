@@ -39,15 +39,49 @@ function GameState:new()
     return self
 end
 
+local function parseCSVLine(line)
+    local res = {}
+    for token in string.gmatch(line, '([^,]+)') do
+        table.insert(res, token)
+    end
+    return res
+end
+
 function GameState:loadDecks()
-    -- Simple example deck, replace with CSV loading if needed
-    for i = 1, 20 do
-        local cost = (i % 3) + 1
-        local power = (i % 5) + 1
-        table.insert(self.playerDeck, Card.new("Card " .. i, cost, power, 0, 0))
-        table.insert(self.aiDeck, Card.new("Card " .. i, cost, power, 0, 0))
+    local path = "cards.csv"
+    local file = love.filesystem.read(path)
+    if not file then
+        print("Failed to load cards.csv, using default deck")
+        -- fallback to default
+        for i = 1, 20 do
+            local cost = (i % 3) + 1
+            local power = (i % 5) + 1
+            table.insert(self.playerDeck, Card.new("Card " .. i, cost, power, 0, 0))
+            table.insert(self.aiDeck, Card.new("Card " .. i, cost, power, 0, 0))
+        end
+        return
+    end
+
+    local lines = {}
+    for line in file:gmatch("[^\r\n]+") do
+        table.insert(lines, line)
+    end
+
+    -- First line is header, skip it
+    for i = 2, #lines do
+        local values = parseCSVLine(lines[i])
+        local name = values[1]
+        local cost = tonumber(values[2]) or 1
+        local power = tonumber(values[3]) or 1
+
+        -- For simplicity, 0,0 initial pos
+        local card1 = Card.new(name, cost, power, 0, 0)
+        local card2 = Card.new(name, cost, power, 0, 0)
+        table.insert(self.playerDeck, card1)
+        table.insert(self.aiDeck, card2)
     end
 end
+
 
 function GameState:shuffleDeck(deck)
     for i = #deck, 2, -1 do
